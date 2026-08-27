@@ -17,10 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # wasm32v1-none is the Soroban target: core wasm 1.0 only. Building for
+      # wasm32-unknown-unknown on Rust 1.82+ emits reference-types/multi-value
+      # instructions that the Soroban host rejects at deployment.
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -32,8 +35,14 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Run tests
+      - name: Build release WASM
+        run: cargo build --target wasm32v1-none --release
+
+      - name: Run unit tests
         run: cargo test
+
+      - name: Run E2E tests
+        run: cargo test -p e2e-tests
 
   build:
     name: Build WASM
@@ -45,7 +54,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -58,11 +67,11 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Build contracts
-        run: cargo build --target wasm32-unknown-unknown --release
+        run: cargo build --target wasm32v1-none --release
 
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: wasm-contracts
-          path: target/wasm32-unknown-unknown/release/*.wasm
+          path: target/wasm32v1-none/release/*.wasm
           retention-days: 7
